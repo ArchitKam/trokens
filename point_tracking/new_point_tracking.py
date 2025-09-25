@@ -1,4 +1,4 @@
-#omsairam omsairam omsairam 
+#omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam 
 """
 Point tracking module for extracting and tracking semantic points in videos.
 
@@ -51,8 +51,8 @@ def check_columns_in_df(df):
             raise ValueError(f"Column {col} not found in the dataframe")
 
 
-def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
-                    custom_fps=None):
+def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path, start_time, end_time, 
+                    custom_fps):
     """Extract points from a video and save them to a pickle file.
 
     Args:
@@ -75,7 +75,7 @@ def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
         return True
 
     video_loaded, video_frames, frames_id_dict = load_video_pyvideo_reader(
-        video_path, return_tensor=True, use_float=False,
+        video_path, start_time, end_time, return_tensor=True, use_float=False,
         num_frames=args.num_frames_clustering, sample_all_frames=False,
         fps=custom_fps if custom_fps is not None else args.fps)  # (B, T, C, H, W)
     if not video_loaded:
@@ -89,18 +89,27 @@ def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
 
     base_point_info = get_points_from_clustering(
         args, video_frames, feat_extractor, debug_vis_dump_root)
+    
     points_list, point_labels_list, component_labels_list = base_point_info
+
+    print("len(component_labels_list):", len(component_labels_list))
+    print("frames_id_dict:", frames_id_dict)
+
+
+
     queries_points, cluster_ids_all_frames = convert_points_for_tracking(
         points_list, point_labels_list, frames_id_dict=frames_id_dict,
         component_labels_list=component_labels_list,
         use_connected_components=args.use_connected_components, device=args.device)
+    
+
     if args.debug_mode:
         os.makedirs(debug_vis_dump_root, exist_ok=True)
         time_end = time.time()
         print(f"Time taken to get points and labels: {time_end - time_start} seconds")
     torch.cuda.empty_cache()
 
-    _, video, _ = load_video_pyvideo_reader(video_path, return_tensor=True, use_float=True,
+    _, video, _ = load_video_pyvideo_reader(video_path, start_time, end_time, return_tensor=True, use_float=True,
                              device=args.device, sample_all_frames=True,
                              fps=custom_fps if custom_fps is not None else args.fps)  # B T C H W
     if args.debug_mode:
@@ -221,6 +230,8 @@ if __name__ == "__main__":
     for video_index, vid_info_row in df.iterrows():
         dataset = vid_info_row['dataset']
         video_path = vid_info_row['video_path']
+        start_time = vid_info_row.get('start_time', None)
+        end_time = vid_info_row.get('end_time', None)
         if 'duration' in vid_info_row:
             duration = vid_info_row['duration']
             if duration>90:
@@ -229,8 +240,11 @@ if __name__ == "__main__":
                 custom_fps = None
         else:
             custom_fps = None
+        print(custom_fps)
+        
         video_uniq_id = video_path.split('/')[-1].split('.')[0]
         feat_dump_name = f'{video_uniq_id}'
         ds_dump_path = os.path.join(args.base_feat_path, dump_name, dataset)
-        extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
-                        custom_fps=custom_fps)
+        print("Extracting points for video:", video_path)
+        extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path, start_time, end_time, 
+                        custom_fps)
