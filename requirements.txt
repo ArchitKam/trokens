@@ -14,3 +14,4 @@ imageio
 scikit-learn
 fvcore
 psutil
+video-reader-rs

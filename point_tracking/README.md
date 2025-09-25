@@ -2,6 +2,8 @@
 
 This code implements semantic point tracking and extraction using the CoTracker. The implementation uses CoTracker3 and focuses on extracting semantic points from videos using clustering methods on DINOv2 features rather than simple grid-based sampling.
 
+*Update(9/25/25): Added video-reader-rs for video loading. Install using `pip install video-reader-rs`.*
+
 ## Overview
 
 The code provides functionality to:
@@ -29,6 +31,8 @@ Please refer to the [CoTracker repository](https://github.com/facebookresearch/c
 - NumPy
 - Pandas
 - Einops
+- video-reader-rs
+
 
 ## Input Format
 
