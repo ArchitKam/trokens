@@ -2,7 +2,7 @@
 
 This code implements semantic point tracking and extraction using the CoTracker. The implementation uses CoTracker3 and focuses on extracting semantic points from videos using clustering methods on DINOv2 features rather than simple grid-based sampling.
 
-*Update(9/25/25): Added video-reader-rs for video loading. Install using `pip install video-reader-rs`.*
+*Update(9/25/25): Added [video-reader-rs](https://github.com/gcanat/video_reader-rs) for video loading. Install using `pip install video-reader-rs`.*
 
 ## Overview
 
