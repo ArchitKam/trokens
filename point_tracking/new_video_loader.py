@@ -5,12 +5,12 @@ import os
 import av
 import torch
 import numpy as np
-from decord import VideoReader
+from video_reader import PyVideoReader # pip install video-reader-rs
 
 
-def load_video_decord(vid_path, return_tensor=False,
-                      use_float=False, num_frames=8,
-                      sample_all_frames=False, fps=None, device=None):
+def load_video_pyvideo_reader(vid_path, return_tensor=False, device=None,
+                              use_float=False, num_frames=8,
+                              sample_all_frames=False, fps=None):
     '''
     load video from file with regular interval sampling using Decord.
     Args:
@@ -29,19 +29,17 @@ def load_video_decord(vid_path, return_tensor=False,
     assert os.path.exists(vid_path), f"Video file {vid_path} does not exist"
 
 
-    print("AV failed, trying decord")
-    vr = VideoReader(vid_path, num_threads=1)
+    vr = PyVideoReader(vid_path)
 
     total_frames = len(vr)
-    original_fps = vr.get_avg_fps()
+    duration = float(vr.get_info()['duration'])
 
     if fps is not None:
         # Calculate frame indices based on desired fps
-        interval = int(round(original_fps / fps))
-        frame_indices = list(range(0, total_frames, interval))
+        total_frames_to_take = int(duration * fps)
+        frame_indices = np.linspace(0, total_frames-1, total_frames_to_take, dtype=int)
     else:
         frame_indices = list(range(total_frames))
-
     if not sample_all_frames:
         # Ensure num_frames does not exceed available frames
         available_frames = len(frame_indices)
@@ -53,12 +51,12 @@ def load_video_decord(vid_path, return_tensor=False,
         # Calculate indices for uniformly sampled frames
         sample_indices = np.linspace(0, len(frame_indices)-1, num_frames, dtype=int)
         frame_indices = [frame_indices[i] for i in sample_indices]
-        frame_id_dict = {i: idx for i, idx in enumerate(frame_indices)}
+        frame_id_dict = {i: idx for i, idx in enumerate(sample_indices)}
     else:
         frame_id_dict = None
 
     # Read frames
-    frames = vr.get_batch(frame_indices).asnumpy()  # T,H,W,C
+    frames = vr.get_batch(frame_indices)  # T,H,W,C
 
     # Convert to float if needed
     if use_float:
@@ -74,7 +72,7 @@ def load_video_decord(vid_path, return_tensor=False,
             raise ValueError("Frames contain NaNs or Infs")
         if device is not None:
             frames = frames.to(device)
-    return frames, frame_id_dict
+    return True, frames, frame_id_dict
 
 
 def load_video(vid_path, return_tensor=False, device=None, use_float=False,
@@ -91,7 +89,7 @@ def load_video(vid_path, return_tensor=False, device=None, use_float=False,
     Returns:
         frames: (B, T, C, H, W) numpy array or tensor, where T = num_frames
     '''
-    print(f"Processing {vid_path}...")
+    print(f"Processing {vid_path}...FPS: {fps}")
     assert os.path.exists(vid_path), f"Video file {vid_path} does not exist"
 
     # Option 2: Using PyAV
@@ -145,6 +143,7 @@ def load_video(vid_path, return_tensor=False, device=None, use_float=False,
         frames = frames[:, frame_indices]  # (1, T, C, H, W)
         frame_id_dict = {i: frame_indices[i] for i in range(num_frames)}
 
+    breakpoint()
     if return_tensor:
         frames = torch.from_numpy(frames).to(device)
 

@@ -19,7 +19,7 @@ import pandas as pd
 from utils import convert_points_for_tracking, save_video
 from feat_extractor import feature_extract
 from get_semantic_points import get_points_from_clustering
-from new_video_loader import load_video
+from new_video_loader import load_video_pyvideo_reader
 from omni_vis import vis_trail
 
 # set seeds
@@ -50,7 +50,8 @@ def check_columns_in_df(df):
             raise ValueError(f"Column {col} not found in the dataframe")
 
 
-def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path):
+def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
+                    custom_fps=None):
     """Extract points from a video and save them to a pickle file.
 
     Args:
@@ -59,6 +60,7 @@ def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path):
         feat_extractor (torch.nn.Module): Feature extractor model
         video_path (str): Path to the video
         ds_dump_path (str): Path to the directory where the pickle file will be saved
+        custom_fps (int): Custom fps to use for the video if video duration > 90s
 
     Returns:
         bool: True if the points were extracted, False otherwise
@@ -71,10 +73,10 @@ def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path):
     if os.path.exists(feat_dump_path) and not args.rerun:
         return True
 
-    video_loaded, video_frames, frames_id_dict = load_video(
+    video_loaded, video_frames, frames_id_dict = load_video_pyvideo_reader(
         video_path, return_tensor=True, use_float=False,
         num_frames=args.num_frames_clustering, sample_all_frames=False,
-        fps=args.fps)  # (B, T, C, H, W)
+        fps=custom_fps if custom_fps is not None else args.fps)  # (B, T, C, H, W)
     if not video_loaded:
         print(f"Video {vid_name} not loaded")
         return None
@@ -97,9 +99,9 @@ def extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path):
         print(f"Time taken to get points and labels: {time_end - time_start} seconds")
     torch.cuda.empty_cache()
 
-    _, video, _ = load_video(video_path, return_tensor=True, use_float=True,
-                             device=args.device, sample_all_frames=True, fps=args.fps)  # B T C H W
-
+    _, video, _ = load_video_pyvideo_reader(video_path, return_tensor=True, use_float=True,
+                             device=args.device, sample_all_frames=True,
+                             fps=custom_fps if custom_fps is not None else args.fps)  # B T C H W
     if args.debug_mode:
         time_start = time.time()
     if args.use_grid:
@@ -218,7 +220,16 @@ if __name__ == "__main__":
     for video_index, vid_info_row in df.iterrows():
         dataset = vid_info_row['dataset']
         video_path = vid_info_row['video_path']
+        if 'duration' in vid_info_row:
+            duration = vid_info_row['duration']
+            if duration>90:
+                custom_fps = 1
+            else:
+                custom_fps = None
+        else:
+            custom_fps = None
         video_uniq_id = video_path.split('/')[-1].split('.')[0]
         feat_dump_name = f'{video_uniq_id}'
         ds_dump_path = os.path.join(args.base_feat_path, dump_name, dataset)
-        extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path)
+        extract_points(args, cotracker, feat_extractor, video_path, ds_dump_path,
+                        custom_fps=custom_fps)
