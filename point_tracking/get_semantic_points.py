@@ -166,6 +166,8 @@ def get_points_from_clustering(args, video_frames, feat_extractor, debug_vis_roo
 
     for frame_id in range(n_frames):
         if frame_id not in peak_frames:
+            points_list.append([])
+            point_labels_list.append([])
             continue
         clusters_to_consider = peak_frames[frame_id]
         # getting
