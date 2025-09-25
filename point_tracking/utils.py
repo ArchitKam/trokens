@@ -1,3 +1,4 @@
+#omsairam omsairam omsairam 
 import torch
 import numpy as np
 from PIL import Image
@@ -100,9 +101,13 @@ def convert_points_for_tracking(points_list, labels_list, frames_id_dict=None,
         queries_points_all_frames.append(queries_points)
         query_labels_all_frames.extend(labels)
 
+
+    print("checkpoint 1")
     queries_points_all_frames = torch.cat(queries_points_all_frames, dim=1) # B M 3
     query_labels_all_frames = np.array(query_labels_all_frames)
     query_component_labels_all_frames = np.array(query_component_labels_all_frames)
+
+    print("checkpoint 2")
     if use_connected_components:
         unique_labels = np.unique(query_labels_all_frames)
         new_labels = np.zeros_like(query_labels_all_frames)
@@ -114,7 +119,7 @@ def convert_points_for_tracking(points_list, labels_list, frames_id_dict=None,
             new_labels[mask] = current_max_label + component_labels
             current_max_label += np.max(component_labels) + 1
         query_labels_all_frames = new_labels
-
+    print("checkpoint 3")
     return queries_points_all_frames.float(), query_labels_all_frames
 
 def get_cluster_peak_frames(cluster_labels, num_clusters=None):
