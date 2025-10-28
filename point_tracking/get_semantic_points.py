@@ -1,3 +1,5 @@
+#omsairam omsairam omsairam 
+
 """
 This file contains the functions to get the semantic points from the clustering.
 """
@@ -168,6 +170,8 @@ def get_points_from_clustering(args, video_frames, feat_extractor, debug_vis_roo
         if frame_id not in peak_frames:
             points_list.append([])
             point_labels_list.append([])
+            if args.use_connected_components:
+                component_labels_list.append([])
             continue
         clusters_to_consider = peak_frames[frame_id]
         # getting

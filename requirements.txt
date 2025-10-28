@@ -7,7 +7,6 @@ einops
 iopath
 wandb
 simplejson
-decord
 matplotlib
 opencv-python
 imageio

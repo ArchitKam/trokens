@@ -1,3 +1,5 @@
+#omsairam omsairam omsairam 
+
 import torch
 import torch.nn.functional as F
 from einops import rearrange
@@ -386,4 +388,3 @@ def cluster_coordinates_per_component(components, num_points_total, cluster_coor
         all_clustered_points.append(clustered_points)
         point_component_labels.append(np.ones(len(clustered_points)) * component_idx)
     return np.vstack(all_clustered_points), np.concatenate(point_component_labels).astype(int)
-

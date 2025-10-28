@@ -1,4 +1,4 @@
-#omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam 
+#omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam omsairam 
 
 """
 This file contains the functions to load videos.
@@ -10,9 +10,10 @@ import numpy as np
 from video_reader import PyVideoReader # pip install video-reader-rs
 
 
-def load_video_pyvideo_reader(vid_path, start_time, end_time, return_tensor=False, device=None,
+def load_video_pyvideo_reader(vid_path, return_tensor=False, device=None,
                               use_float=False, num_frames=8,
-                              sample_all_frames=True, fps=None):
+                              sample_all_frames=False, fps=10,
+                              seg_start_time=None, seg_end_time=None):
     '''
     load video from file with regular interval sampling using Decord.
     Args:
@@ -23,44 +24,39 @@ def load_video_pyvideo_reader(vid_path, start_time, end_time, return_tensor=Fals
         num_frames: number of frames to sample (default=8)
         sample_all_frames: if True, return all frames without subsampling
         fps: if set, load video at this frame rate
+        seg_start_time: if set, load video from this time, in seconds
+        seg_end_time: if set, load video to this time, in seconds
     Returns:
         frames: (B, T, C, H, W) numpy array or tensor, where T = num_frames
         frame_id_dict: dictionary mapping sampled frame indices to original  indices
     '''
-    print(f"Processing {vid_path}...")
+    print(f"Processing {vid_path}... with custom_fps={fps}")
     assert os.path.exists(vid_path), f"Video file {vid_path} does not exist"
 
 
     vr = PyVideoReader(vid_path)
 
     total_frames = len(vr)
+    duration = float(vr.get_info()['duration'])
+    actual_fps = float(vr.get_info()['fps'])
+    if seg_start_time is not None and seg_end_time is not None:
+        duration = seg_end_time - seg_start_time
+        total_frames = int(duration * actual_fps)
+        seg_start_frame = int(seg_start_time * actual_fps)
+        seg_end_frame = int(seg_end_time * actual_fps) - 1
+       
 
-    if start_time is not None and end_time is not None:
-        # Get video fps to convert time to frame indices
-        video_fps = float(vr.get_info()['fps']) 
-        print(video_fps)
-        print(start_time)
-        start_frame = int(start_time * video_fps)
-        end_frame = int(end_time * video_fps)
-        if start_frame >= total_frames or end_frame > total_frames or start_frame >= end_frame:
-            print(f"Invalid start_time ({start_time}) or end_time ({end_time}) for video with {total_frames} frames.")
-            return False, None, None
-        # Adjust total_frames to the segment length
-        total_frames = end_frame - start_frame
-        print("Start frame:", start_frame, "End frame:", end_frame)
+    else:
+        seg_start_frame = 0
+        seg_end_frame = total_frames - 1
 
-    duration = end_time-start_time 
-    #duration = float(vr.get_info()['duration'])
 
     if fps is not None:
         # Calculate frame indices based on desired fps
         total_frames_to_take = int(duration * fps)
-        frame_indices = np.linspace(start_frame, end_frame-1, total_frames_to_take, dtype=int)
+        frame_indices = np.linspace(seg_start_frame, seg_end_frame, total_frames_to_take, dtype=int)
     else:
-        frame_indices = list(range(start_frame, end_frame))
-
-    
-
+        frame_indices = list(range(seg_start_frame, seg_end_frame + 1)) # inclusive
     if not sample_all_frames:
         # Ensure num_frames does not exceed available frames
         available_frames = len(frame_indices)
@@ -75,13 +71,6 @@ def load_video_pyvideo_reader(vid_path, start_time, end_time, return_tensor=Fals
         frame_id_dict = {i: idx for i, idx in enumerate(sample_indices)}
     else:
         frame_id_dict = None
-
-
-
-    print(f"Total frames to load: {len(frame_indices)}")
-    print(f"Frame indices: {frame_indices}")
-    print(f"Sample indices: {sample_indices}")
-
 
     # Read frames
     frames = vr.get_batch(frame_indices)  # T,H,W,C
